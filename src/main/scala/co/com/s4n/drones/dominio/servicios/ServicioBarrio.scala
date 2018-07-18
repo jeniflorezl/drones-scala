@@ -8,12 +8,12 @@ sealed trait ServicioBarrio {
   def validarPosicion(dron: Dron, barrio: Barrio): Try[Boolean]
 }
 
-object ServicioBarrioObj extends ServicioDron {
-    override def validarPosicion(dron: Dron, barrio: Barrio): Try[Boolean] = {
+/*object ServicioBarrioObj extends ServicioDron {
+    /*override def validarPosicion(dron: Dron, barrio: Barrio): Try[Boolean] = {
       if (dron.posicion.x <= barrio.elimite && dron.posicion.x >= barrio.olimite &&
         dron.posicion.y <= barrio.nlimite && dron.posicion.y >= barrio.slimite)
         Success(true)
       else
-        Try{new Failure[String]()}
-    }
-}
+        Try{false}
+    }*/
+}*/
