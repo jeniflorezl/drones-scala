@@ -1,6 +1,6 @@
 package co.com.s4n.drones.dominio.servicios
 
-import co.com.s4n.drones.dominio.entidades.{Dron, Entrega, Posicion}
+import co.com.s4n.drones.dominio.entidades.{Barrio, Dron, Entrega, Posicion}
 import co.com.s4n.drones.dominio.vo._
 
 import scala.util.Try
@@ -19,7 +19,7 @@ object ServicioEntregaObj extends ServicioEntrega {
   }
 
   override def partirEntregas(entregas: List[List[Movimiento]]): Option[Iterator[List[List[Movimiento]]]] = {
-    Some(entregas.grouped(3))
+    Some(entregas.grouped(10))
   }
 
   override def realizarEntrega(entregas: Iterator[List[List[Movimiento]]]): Unit = {
@@ -31,35 +31,37 @@ object ServicioEntregaObj extends ServicioEntrega {
 
   }
 
-  def despacharDron(dron: Dron) = {
-    var nuevoDron = otro(dron)
-    nuevoDron.get.entregas.foreach(ruta => {
-      while (nuevoDron.get.entregas.size > 0){
-        nuevoDron = otro(nuevoDron.get)
-      }
-    })
-  }
-
-  def otro(dron: Dron): Try[Dron] ={
+  def despacharDron(dron: Dron): Try[Dron] ={
     val dronMoved = ejecutarMovimiento(dron)
-    val dron2 = Dron(Posicion(dronMoved.get.posicion.x,
-      dronMoved.get.posicion.y, dronMoved.get.posicion.direccion),dronMoved.get.file, dronMoved.get.entregas.tail)
-    if (dronMoved.isSuccess) reportarMovimiento(dronMoved.get)
-    else "Error "
-    Try{dron2}
+    val validarDron: Try[Boolean] = dronMoved.flatMap(dron => ServicioBarrioObj.validarPosicion(dron, Barrio(10,10,-10,-10)))
+    val dron2: Try[Dron] = validarDron.flatMap(v => {
+      if (v){
+        dronMoved.map(d => {
+          reportarMovimiento(d)
+          Dron(Posicion(d.posicion.x, d.posicion.y, d.posicion.direccion),d.file, d.entregas.tail)
+        })
+      } else Try{dron}
+    }
+    )
+    dron2.flatMap(dronNu => {
+      if (dronNu.entregas.nonEmpty) despacharDron(dronNu)
+      else Try{dron}
+    })
   }
 
 
   override def ejecutarMovimiento(dron: Dron): Try[Dron] = {
     val rutas = dron.entregas
     var dronMoved = dron
-    rutas.head.foreach(ruta => {
-      dronMoved = ruta match {
+    rutas.headOption.foreach(ruta => ruta.foreach(r => {
+      dronMoved = r match {
         case A() => ServicioDronObj.adelante(dronMoved)
         case I() => ServicioDronObj.izquierda(dronMoved)
         case D() => ServicioDronObj.derecha(dronMoved)
+        case M() => dronMoved
       }
     })
+    )
     Try{dronMoved}
   }
 

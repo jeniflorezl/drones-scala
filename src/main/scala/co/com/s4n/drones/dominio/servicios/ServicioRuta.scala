@@ -1,6 +1,6 @@
 package co.com.s4n.drones.dominio.servicios
 
-import co.com.s4n.drones.dominio.vo.{A, D, I, Movimiento}
+import co.com.s4n.drones.dominio.vo._
 
 sealed trait ServicioRuta {
   def prepararRutas(rutas: List[String]): List[List[Movimiento]]
@@ -19,6 +19,7 @@ object ServicioRutaObj extends ServicioRuta {
       case s: String if s == "A" => A()
       case s: String if s == "I" => I()
       case s: String if s == "D" => D()
+      case _ => M()
     })
     movimientos
   }
