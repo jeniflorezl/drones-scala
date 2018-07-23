@@ -1,7 +1,7 @@
 package co.com.s4n.drones.dominio.servicios
 
 import co.com.s4n.drones.dominio.entidades.{Dron, Entrega, Posicion}
-import co.com.s4n.drones.dominio.vo.{Movimiento, N}
+import co.com.s4n.drones.dominio.vo._
 
 import scala.util.Try
 
@@ -9,9 +9,8 @@ sealed trait ServicioEntrega {
   def prepararEntregas(entregas: List[String]): Option[List[List[Movimiento]]]
   def partirEntregas(entregas: List[List[Movimiento]]): Option[Iterator[List[List[Movimiento]]]]
   def realizarEntrega(entregas: Iterator[List[List[Movimiento]]])
-  def ejecutarMovimiento(dron: Dron): Try[List[Dron]]
-  def definirMovimiento(dron: Dron, rutas: List[Movimiento]): Try[Dron]
-  def reportarMovimiento(dron: Dron): Try[Boolean]
+  def ejecutarMovimiento(dron: Dron): Try[Dron]
+  def reportarMovimiento(dron: Dron)
 }
 
 object ServicioEntregaObj extends ServicioEntrega {
@@ -24,26 +23,48 @@ object ServicioEntregaObj extends ServicioEntrega {
   }
 
   override def realizarEntrega(entregas: Iterator[List[List[Movimiento]]]): Unit = {
+    OperandoArchivos.escribirArchivo("==REPORTE DE ENTREGAS==", "1")
     entregas.foreach(entrega => {
-      val nuevoDron = Dron(Posicion(0,0,N()),"")
-
+      val nuevoDron = Dron(Posicion(0,0,N()),"1", entrega)
+      despacharDron(nuevoDron)
     })
 
   }
 
-  override def ejecutarMovimiento(dron: Dron, rutas: List[List[Movimiento]]): Try[List[Dron]] = {
-    for {
-      ruta <- rutas
-      ruta match {
-      case A() => ServicioDronObj.adelante()
-    }
-    }
+  def despacharDron(dron: Dron) = {
+    var nuevoDron = otro(dron)
+    nuevoDron.get.entregas.foreach(ruta => {
+      while (nuevoDron.get.entregas.size > 0){
+        nuevoDron = otro(nuevoDron.get)
+      }
+    })
   }
 
-  override def definirMovimiento(dron: Dron, rutas: List[Movimiento]): Try[Dron] = {
-    for
+  def otro(dron: Dron): Try[Dron] ={
+    val dronMoved = ejecutarMovimiento(dron)
+    val dron2 = Dron(Posicion(dronMoved.get.posicion.x,
+      dronMoved.get.posicion.y, dronMoved.get.posicion.direccion),dronMoved.get.file, dronMoved.get.entregas.tail)
+    if (dronMoved.isSuccess) reportarMovimiento(dronMoved.get)
+    else "Error "
+    Try{dron2}
   }
 
 
-  override def reportarMovimiento(dron: Dron): Try[Boolean] = ???
+  override def ejecutarMovimiento(dron: Dron): Try[Dron] = {
+    val rutas = dron.entregas
+    var dronMoved = dron
+    rutas.head.foreach(ruta => {
+      dronMoved = ruta match {
+        case A() => ServicioDronObj.adelante(dronMoved)
+        case I() => ServicioDronObj.izquierda(dronMoved)
+        case D() => ServicioDronObj.derecha(dronMoved)
+      }
+    })
+    Try{dronMoved}
+  }
+
+  override def reportarMovimiento(dron: Dron)= {
+    val message: String = s"(${dron.posicion.x},${dron.posicion.y}) ${dron.posicion.direccion}"
+    OperandoArchivos.escribirArchivo(message, dron.file)
+  }
 }

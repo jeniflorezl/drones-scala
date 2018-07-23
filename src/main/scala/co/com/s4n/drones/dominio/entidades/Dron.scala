@@ -1,3 +1,5 @@
 package co.com.s4n.drones.dominio.entidades
 
-case class Dron(posicion: Posicion, file: String)
+import co.com.s4n.drones.dominio.vo.Movimiento
+
+case class Dron(posicion: Posicion, file: String, entregas: List[List[Movimiento]])
