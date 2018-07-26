@@ -9,6 +9,7 @@ sealed trait ServicioEntrega {
   def prepararEntregas(entregas: List[String]): Option[List[List[Movimiento]]]
   def partirEntregas(entregas: List[List[Movimiento]]): Option[Iterator[List[List[Movimiento]]]]
   def realizarEntrega(entregas: Iterator[List[List[Movimiento]]])
+  def ejecutarDron(dron: Dron): Try[Dron]
   def ejecutarMovimiento(dron: Dron): Try[Dron]
   def reportarMovimiento(dron: Dron)
 }
@@ -26,29 +27,27 @@ object ServicioEntregaObj extends ServicioEntrega {
     OperandoArchivos.escribirArchivo("==REPORTE DE ENTREGAS==", "1")
     entregas.foreach(entrega => {
       val nuevoDron = Dron(Posicion(0,0,N()),"1", entrega)
-      despacharDron(nuevoDron)
+      ejecutarDron(nuevoDron)
     })
 
   }
 
-  def despacharDron(dron: Dron): Try[Dron] ={
+  override def ejecutarDron(dron: Dron): Try[Dron] = {
     val dronMoved = ejecutarMovimiento(dron)
-    val validarDron: Try[Boolean] = dronMoved.flatMap(dron => ServicioBarrioObj.validarPosicion(dron, Barrio(10,10,-10,-10)))
-    val dron2: Try[Dron] = validarDron.flatMap(v => {
-      if (v){
-        dronMoved.map(d => {
-          reportarMovimiento(d)
-          Dron(Posicion(d.posicion.x, d.posicion.y, d.posicion.direccion),d.file, d.entregas.tail)
-        })
-      } else Try{dron}
+    val validarDron: Try[Dron] = dronMoved.flatMap(dron => ServicioBarrioObj.validarPosicion(dron, Barrio(10,10,-10,-10)))
+    val dron2 = if (validarDron.isSuccess){
+      dronMoved.map(d => {
+        reportarMovimiento(d)
+        Dron(Posicion(d.posicion.x, d.posicion.y, d.posicion.direccion),d.file, d.entregas.tail)
+      })
+    }else{
+      Try{dron}
     }
-    )
     dron2.flatMap(dronNu => {
-      if (dronNu.entregas.nonEmpty) despacharDron(dronNu)
+      if (dronNu.entregas.nonEmpty) ejecutarDron(dronNu)
       else Try{dron}
     })
   }
-
 
   override def ejecutarMovimiento(dron: Dron): Try[Dron] = {
     val rutas = dron.entregas
@@ -58,7 +57,6 @@ object ServicioEntregaObj extends ServicioEntrega {
         case A() => ServicioDronObj.adelante(dronMoved)
         case I() => ServicioDronObj.izquierda(dronMoved)
         case D() => ServicioDronObj.derecha(dronMoved)
-        case M() => dronMoved
       }
     })
     )
